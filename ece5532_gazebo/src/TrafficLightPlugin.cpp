@@ -97,12 +97,7 @@ void TrafficLightPlugin::Configure(const Entity& entity, const std::shared_ptr<c
 void TrafficLightPlugin::PreUpdate(const UpdateInfo& info, EntityComponentManager& ecm)
 {
   if (info.paused) return;
-
-  double dt = std::chrono::duration<double>(info.dt).count();
-  sequence_timestamp_ += dt;
-  if (sequence_timestamp_ >= cycle_time_) {
-    sequence_timestamp_ -= cycle_time_;
-  }
+  sequence_timestamp_ = std::fmod(std::chrono::duration<double>(info.simTime).count(), cycle_time_);
   advanceSequence(ecm);
 }
 
