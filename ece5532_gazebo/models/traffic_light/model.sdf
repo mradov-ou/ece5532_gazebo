@@ -5,7 +5,7 @@
 
     <link name="light_fixture">
       <gravity>false</gravity>
-      <pose relative_to="cross_beam_frame">0.13 -0.535 6.0 -1.5707 0 0</pose>
+      <pose relative_to="cross_beam">0.13 0 8.0 -1.5707 0 0</pose>
       <inertial>
         <mass>5.0</mass>
         <inertia>
@@ -15,7 +15,7 @@
         </inertia>
       </inertial>
       <visual name="visual">
-        <pose>0 0 0.535 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <box>
             <size>0.1 0.6 1.2</size>
@@ -28,7 +28,7 @@
         </material>
       </visual>
       <collision name="collision">
-        <pose>0 0 0.535 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <box>
             <size>0.1 0.6 1.2</size>
@@ -39,7 +39,7 @@
 
     <link name="green_off">
       <gravity>false</gravity>
-      <pose relative_to="light_fixture">0.075 0 0.175 0 1.5707 0</pose>
+      <pose relative_to="light_fixture">0.075 0 -0.35 0 1.5707 0</pose>
       <inertial>
         <mass>0.1</mass>
         <inertia>
@@ -74,7 +74,7 @@
 
     <link name="green_on">
       <gravity>false</gravity>
-      <pose relative_to="light_fixture">0 0 0.175 0 1.5707 0</pose>
+      <pose relative_to="light_fixture">0 0 -0.35 0 1.5707 0</pose>
       <inertial>
         <mass>0.001</mass>
         <inertia>
@@ -109,7 +109,7 @@
 
     <link name="yellow_off">
       <gravity>false</gravity>
-      <pose relative_to="light_fixture">0.075 0 0.525 0 1.5707 0</pose>
+      <pose relative_to="light_fixture">0.075 0 0 0 1.5707 0</pose>
       <inertial>
         <mass>0.1</mass>
         <inertia>
@@ -144,7 +144,7 @@
 
     <link name="yellow_on">
       <gravity>false</gravity>
-      <pose relative_to="light_fixture">0 0 0.525 0 1.5707 0</pose>
+      <pose relative_to="light_fixture">0 0 0 0 1.5707 0</pose>
       <inertial>
         <mass>0.001</mass>
         <inertia>
@@ -179,7 +179,7 @@
 
     <link name="red_off">
       <gravity>false</gravity>
-      <pose relative_to="light_fixture">0.075 0 0.875 0 1.5707 0</pose>
+      <pose relative_to="light_fixture">0.075 0 0.35 0 1.5707 0</pose>
       <inertial>
         <mass>0.1</mass>
         <inertia>
@@ -214,7 +214,7 @@
 
     <link name="red_on">
       <gravity>false</gravity>
-      <pose relative_to="light_fixture">0 0 0.875 0 1.5707 0</pose>
+      <pose relative_to="light_fixture">0 0 0.35 0 1.5707 0</pose>
       <inertial>
         <mass>0.001</mass>
         <inertia>
@@ -346,11 +346,11 @@
         </inertia>
       </inertial>
       <visual name="visual">
-        <pose>0 0 3.0 0 0 0</pose>
+        <pose>0 0 4.0 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.125</radius>
-            <length>6.0</length>
+            <length>8.0</length>
           </cylinder>
         </geometry>
         <material>
@@ -360,22 +360,15 @@
         </material>
       </visual>
       <collision name="collision">
-        <pose>0 0 3.0 0 0 0</pose>
+        <pose>0 0 4.0 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.125</radius>
-            <length>6.0</length>
+            <length>8.0</length>
           </cylinder>
         </geometry>
       </collision>
     </link>
-
-    <frame name="base_frame" attached_to="base">
-    </frame>
-
-    <frame name="cross_beam_frame">
-      <pose relative_to="base_frame">0 0 6.015 1.5707 0 0</pose>
-    </frame>
 
     <joint name="cross_beam_fixed" type="fixed">
       <parent>base</parent>

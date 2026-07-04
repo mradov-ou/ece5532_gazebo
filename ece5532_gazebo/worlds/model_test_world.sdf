@@ -222,33 +222,6 @@
       </include>
     </model>
 
-    <model name="intersection">
-      <static>true</static>
-      <self_collide>false</self_collide>
-      <pose>50 0 0 0 0 0</pose>
-      <include merge="true">
-        <uri>package://ece5532_gazebo/models/intersection</uri>
-      </include>
-    </model>
-
-    <model name="search_and_rescue">
-      <static>true</static>
-      <self_collide>false</self_collide>
-      <pose>-30 0 0 0 0 0</pose>
-      <include merge="true">
-        <uri>package://ece5532_gazebo/models/search_and_rescue_building</uri>
-      </include>
-    </model>
-
-    <model name="maze">
-      <static>true</static>
-      <self_collide>false</self_collide>
-      <pose>-30 30 0 0 0 0</pose>
-      <include merge="true">
-        <uri>package://ece5532_gazebo/models/maze</uri>
-      </include>
-    </model>
-
     <model name="default_traffic_light">
       <static>true</static>
       <self_collide>false</self_collide>
@@ -268,6 +241,99 @@
       <plugin filename="TrafficLightPlugin" name="ece5532_gazebo::TrafficLightPlugin">
         <sequence_entry>yellow 2.0 true</sequence_entry>
       </plugin>
+    </model>
+
+    <model name="intersection">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>50 0 0 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/intersection</uri>
+      </include>
+    </model>
+
+    <model name="west_light">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>40 10 0 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/traffic_light</uri>
+      </include>
+      <plugin filename="TrafficLightPlugin" name="ece5532_gazebo::TrafficLightPlugin">
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>green 4.0 false</sequence_entry>
+        <sequence_entry>yellow 2.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>red 4.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+      </plugin>
+    </model>
+    <model name="east_light">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>60 -10 0 0 0 3.14159265359</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/traffic_light</uri>
+      </include>
+      <plugin filename="TrafficLightPlugin" name="ece5532_gazebo::TrafficLightPlugin">
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>green 4.0 false</sequence_entry>
+        <sequence_entry>yellow 2.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>red 4.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+      </plugin>
+    </model>
+
+    <model name="north_light">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>40 -10 0 0 0 1.57079632679</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/traffic_light</uri>
+      </include>
+      <plugin filename="TrafficLightPlugin" name="ece5532_gazebo::TrafficLightPlugin">
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>red 4.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>green 4.0 false</sequence_entry>
+        <sequence_entry>yellow 2.0 false</sequence_entry>
+      </plugin>
+    </model>
+    <model name="south_light">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>60 10 0 0 0 -1.57079632679</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/traffic_light</uri>
+      </include>
+      <plugin filename="TrafficLightPlugin" name="ece5532_gazebo::TrafficLightPlugin">
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>red 4.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>red 2.0 false</sequence_entry>
+        <sequence_entry>green 4.0 false</sequence_entry>
+        <sequence_entry>yellow 2.0 false</sequence_entry>
+      </plugin>
+    </model>
+
+    <model name="search_and_rescue">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>-30 0 0 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/search_and_rescue_building</uri>
+      </include>
+    </model>
+
+    <model name="maze">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>-30 30 0 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/maze</uri>
+      </include>
     </model>
 
     <model name="stop_sign">
