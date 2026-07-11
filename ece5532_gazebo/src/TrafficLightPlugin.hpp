@@ -46,7 +46,7 @@ struct LightSequenceEntry {
     LightSequenceEntry(LightColor c = LightColor::RED, double d = 1.0, bool f = false) : color(c), duration(d), flashing(f) {}
 };
 
-class TrafficLightPlugin : public gz::sim::System, public gz::sim::ISystemConfigure, public gz::sim::ISystemPreUpdate
+class TrafficLightPlugin : public gz::sim::System, public gz::sim::ISystemConfigure, public gz::sim::ISystemPreUpdate, public gz::sim::ISystemPostUpdate
 {
   public:
     TrafficLightPlugin();
@@ -55,6 +55,8 @@ class TrafficLightPlugin : public gz::sim::System, public gz::sim::ISystemConfig
     void Configure(const gz::sim::Entity& entity, const std::shared_ptr<const sdf::Element>& sdf, gz::sim::EntityComponentManager& ecm, gz::sim::EventManager& eventMgr) override;
 
     void PreUpdate(const gz::sim::UpdateInfo& info, gz::sim::EntityComponentManager& ecm) override;
+
+    void PostUpdate(const gz::sim::UpdateInfo& info, const gz::sim::EntityComponentManager& ecm) override;
 
   private:
     void setLightPosition(gz::sim::EntityComponentManager& ecm, gz::sim::Entity joint, double pos);
@@ -68,6 +70,11 @@ class TrafficLightPlugin : public gz::sim::System, public gz::sim::ISystemConfig
     std::vector<LightSequenceEntry> light_sequence_;
     double sequence_timestamp_ = 0.0;
     double cycle_time_ = 0.0;
+
+    bool publish_ground_truth_pose_ = false;
+    gz::sim::Entity light_fixture_link_ = gz::sim::kNullEntity;
+    gz::transport::Node::Publisher pub_pose_;
+    gz::msgs::Pose_V posev_msg_;
 
     static constexpr double LIGHT_ON_POS_ = 0.101;
     static constexpr double LIGHT_OFF_POS_ = 0.0;

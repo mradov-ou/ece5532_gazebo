@@ -30,12 +30,41 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sstream>
 
 #include <gz/plugin/Register.hh>
+#include <gz/sim/Conversions.hh>
 #include <gz/sim/components/JointPositionReset.hh>
+#include <gz/sim/components/ParentEntity.hh>
+#include <gz/sim/components/Pose.hh>
 
 using namespace gz;
 using namespace gz::sim;
 
 namespace ece5532_gazebo {
+
+namespace {
+math::Pose3d worldPose(const Entity& entity, const EntityComponentManager& ecm)
+{
+  auto poseComp = ecm.Component<components::Pose>(entity);
+  if (nullptr == poseComp) {
+    gzwarn << "Trying to get world pose from entity [" << entity << "], which doesn't have a pose component" << std::endl;
+    return math::Pose3d();
+  }
+
+  // work out pose in world frame
+  math::Pose3d pose = poseComp->Data();
+  auto p = ecm.Component<components::ParentEntity>(entity);
+  while (p) {
+    // get pose of parent entity
+    auto parentPose = ecm.Component<components::Pose>(p->Data());
+    if (!parentPose)
+      break;
+    // transform pose
+    pose = parentPose->Data() * pose;
+    // keep going up the tree
+    p = ecm.Component<components::ParentEntity>(p->Data());
+  }
+  return pose;
+}
+}  // namespace
 
 TrafficLightPlugin::TrafficLightPlugin() {}
 TrafficLightPlugin::~TrafficLightPlugin() {}
@@ -92,6 +121,17 @@ void TrafficLightPlugin::Configure(const Entity& entity, const std::shared_ptr<c
   for (const auto& entry : this->light_sequence_) {
     this->cycle_time_ += entry.duration;
   }
+
+  this->publish_ground_truth_pose_ = sdf->Get<bool>("pub_tf", false).first;
+  if (this->publish_ground_truth_pose_) {
+    this->light_fixture_link_ = this->model_.LinkByName(ecm, "light_fixture");
+    if (this->light_fixture_link_ == kNullEntity) {
+      gzerr << "TrafficLightPlugin: pub_tf is set but no \"light_fixture\" link was found" << std::endl;
+      this->publish_ground_truth_pose_ = false;
+      return;
+    }
+    this->pub_pose_ = this->node_.Advertise<msgs::Pose_V>("/model/traffic_lights/pose");
+  }
 }
 
 void TrafficLightPlugin::PreUpdate(const UpdateInfo& info, EntityComponentManager& ecm)
@@ -124,7 +164,32 @@ void TrafficLightPlugin::setColor(EntityComponentManager& ecm, LightColor color,
 
 void TrafficLightPlugin::setLightPosition(EntityComponentManager& ecm, Entity joint, double pos) { ecm.SetComponentData<components::JointPositionReset>(joint, {pos}); }
 
+void TrafficLightPlugin::PostUpdate(const UpdateInfo& info, const EntityComponentManager& ecm)
+{
+  if (!this->publish_ground_truth_pose_) return;
+
+  const math::Pose3d fixture_pose = worldPose(this->light_fixture_link_, ecm);
+
+  msgs::Pose* pose_msg = nullptr;
+  this->posev_msg_.Clear();
+  pose_msg = this->posev_msg_.add_pose();
+  GZ_ASSERT(pose_msg != nullptr, "Pose msg is null");
+
+  auto header = pose_msg->mutable_header();
+  header->mutable_stamp()->CopyFrom(convert<msgs::Time>(info.simTime));
+  auto frame = header->add_data();
+  frame->set_key("frame_id");
+  frame->add_value("world");
+  auto child_frame = header->add_data();
+  child_frame->set_key("child_frame_id");
+  child_frame->add_value(model_.Name(ecm));
+  pose_msg->set_name("world_to_light_fixture");
+  msgs::Set(pose_msg, fixture_pose);
+  this->pub_pose_.Publish(this->posev_msg_);
+}
+
 }  // namespace ece5532_gazebo
 
-GZ_ADD_PLUGIN(ece5532_gazebo::TrafficLightPlugin, gz::sim::System, ece5532_gazebo::TrafficLightPlugin::ISystemConfigure, ece5532_gazebo::TrafficLightPlugin::ISystemPreUpdate)
+GZ_ADD_PLUGIN(ece5532_gazebo::TrafficLightPlugin, gz::sim::System, ece5532_gazebo::TrafficLightPlugin::ISystemConfigure, ece5532_gazebo::TrafficLightPlugin::ISystemPreUpdate,
+              ece5532_gazebo::TrafficLightPlugin::ISystemPostUpdate)
 GZ_ADD_PLUGIN_ALIAS(ece5532_gazebo::TrafficLightPlugin, "gz::sim::systems::TrafficLightPlugin")
