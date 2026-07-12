@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>road_world_editor</name>
+  <version>0.1.0</version>
+  <description>
+    Tool to create and edit road networks in Gazebo simulation environments.
+  </description>
+  <maintainer email="mtradovn@oakland.edu">Micho Radovnikovich</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rviz_common</depend>
+  <depend>pluginlib</depend>
+  <depend>interactive_markers</depend>
+  <depend>visualization_msgs</depend>
+  <depend>qtbase5-dev</depend>
+  <depend>nlohmann-json-dev</depend>
+  <depend>ament_index_cpp</depend>
+  <exec_depend>ece5532_gazebo</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+</package>

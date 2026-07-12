@@ -153,7 +153,7 @@
     <model name="straight_1">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>-100 -100 0 0 0 0</pose>
+      <pose>-100 -100 -0.045 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/straight_road_100m</uri>
       </include>
@@ -162,7 +162,7 @@
     <model name="straight_2">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>0 -100 0 0 0 0</pose>
+      <pose>0 -100 -0.045 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/straight_road_100m</uri>
       </include>
@@ -171,7 +171,7 @@
     <model name="curve_1">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>200 0 0 0 0 -1.57079632679</pose>
+      <pose>200 0 -0.045 0 0 -1.57079632679</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/curved_road_100m</uri>
       </include>
@@ -180,7 +180,7 @@
     <model name="curve_2">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>100 100 0 0 0 0</pose>
+      <pose>100 100 -0.045 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/curved_road_100m</uri>
       </include>
@@ -189,7 +189,7 @@
     <model name="straight_3">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>0 100 0 0 0 0</pose>
+      <pose>0 100 -0.045 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/straight_road_100m</uri>
       </include>
@@ -198,7 +198,7 @@
     <model name="straight_4">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>-100 100 0 0 0 0</pose>
+      <pose>-100 100 -0.045 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/straight_road_100m</uri>
       </include>
@@ -207,7 +207,7 @@
     <model name="curve_3">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>-200 0 0 0 0 1.57079632679</pose>
+      <pose>-200 0 -0.045 0 0 1.57079632679</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/curved_road_100m</uri>
       </include>
@@ -216,7 +216,7 @@
     <model name="curve_4">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>-100 -100 0 0 0 3.14159265359</pose>
+      <pose>-100 -100 -0.045 0 0 3.14159265359</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/curved_road_100m</uri>
       </include>
@@ -246,7 +246,7 @@
     <model name="intersection">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>50 0 0 0 0 0</pose>
+      <pose>150 0 0 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/intersection</uri>
       </include>
@@ -255,7 +255,7 @@
     <model name="west_light">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>40 10 0 0 0 0</pose>
+      <pose>140 10 0 0 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/traffic_light</uri>
       </include>
@@ -271,7 +271,7 @@
     <model name="east_light">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>60 -10 0 0 0 3.14159265359</pose>
+      <pose>160 -10 0 0 0 3.14159265359</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/traffic_light</uri>
       </include>
@@ -288,7 +288,7 @@
     <model name="north_light">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>40 -10 0 0 0 1.57079632679</pose>
+      <pose>140 -10 0 0 0 1.57079632679</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/traffic_light</uri>
       </include>
@@ -304,7 +304,7 @@
     <model name="south_light">
       <static>true</static>
       <self_collide>false</self_collide>
-      <pose>60 10 0 0 0 -1.57079632679</pose>
+      <pose>160 10 0 0 0 -1.57079632679</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/traffic_light</uri>
       </include>
@@ -363,6 +363,107 @@
       </include>
     </model>
 
+    <model name="straight_10m">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>5 10 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/straight_road_10m</uri>
+      </include>
+    </model>
+
+    <model name="straight_10m_2">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>5 -10 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/straight_road_10m</uri>
+        <experimental:params>
+          <visual element_id="road::road_visual" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/straight_road_10m/meshes/one_way_two_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </visual>
+          <collision element_id="road::road_collision" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/straight_road_10m/meshes/one_way_two_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </collision>
+        </experimental:params>
+      </include>
+    </model>
+
+    <model name="straight_20m">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>5 30 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/straight_road_20m</uri>
+        <experimental:params>
+          <visual element_id="road::road_visual" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/straight_road_20m/meshes/two_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </visual>
+          <collision element_id="road::road_collision" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/straight_road_20m/meshes/two_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </collision>
+        </experimental:params>
+      </include>
+    </model>
+
+    <model name="straight_20m_2">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>5 -30 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/straight_road_20m</uri>
+        <experimental:params>
+          <visual element_id="road::road_visual" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/straight_road_20m/meshes/one_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </visual>
+          <collision element_id="road::road_collision" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/straight_road_20m/meshes/one_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </collision>
+        </experimental:params>
+      </include>
+    </model>
+
+    <model name="curved_50m">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>50 -10 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/curved_road_50m</uri>
+      </include>
+    </model>
+
+    <model name="curved_50m_flipped">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>50 10 -0.045 3.1415926535 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/curved_road_50m</uri>
+      </include>
+    </model>
 
     <!-- pi = 3.14159265359 -->
     <!-- pi/2 = 1.57079632679-->

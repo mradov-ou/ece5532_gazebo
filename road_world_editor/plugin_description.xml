@@ -1,0 +1,7 @@
+<library path="road_world_editor">
+  <class name="road_world_editor/RoadWorldEditor" type="road_world_editor::RoadWorldEditor" base_class_type="rviz_common::Panel">
+    <description>
+      Tool to create and edit road networks in Gazebo simulation environments.
+    </description>
+  </class>
+</library>
