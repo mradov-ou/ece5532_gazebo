@@ -6,6 +6,7 @@
 #include <interactive_markers/interactive_marker_server.hpp>
 #include <visualization_msgs/msg/interactive_marker_feedback.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 #include <road_world_editor/RoadModel.hpp>
 
@@ -33,7 +34,8 @@ class RoadWorldEditor : public rviz_common::Panel
     void addModelClicked();
     void saveClicked();
     void loadClicked();
-    void exportClicked();
+    void exportGazeboClicked();
+    void exportLaneletClicked();
     void positionEditFinished();
     void variantSelected(int index);
     void disconnectClicked();
@@ -45,7 +47,8 @@ class RoadWorldEditor : public rviz_common::Panel
     QPushButton* add_model_btn_;
     QPushButton* save_btn_;
     QPushButton* load_btn_;
-    QPushButton* export_btn_;
+    QPushButton* export_gazebo_btn_;
+    QPushButton* export_lanelet_btn_;
     QPushButton* disconnect_btn_;
     QPushButton* delete_btn_;
     QPushButton* rotate_cw_btn_;
@@ -54,6 +57,9 @@ class RoadWorldEditor : public rviz_common::Panel
     QComboBox* variant_combo_;
     QLineEdit* x_edit_;
     QLineEdit* y_edit_;
+    QLineEdit* latitude_edit_;
+    QLineEdit* longitude_edit_;
+    QLineEdit* altitude_edit_;
     std::weak_ptr<GazeboModel> displayed_model_;
     Eigen::Vector2d displayed_position_ = Eigen::Vector2d::Zero();
     rclcpp::Node::SharedPtr node_;
@@ -68,7 +74,11 @@ class RoadWorldEditor : public rviz_common::Panel
     QString loadDialogDir() const;
     void storeDialogDir(const QString& filename);
     void refreshPositionEdits();
+    bool getReferenceCoordinates(double& latitude, double& longitude, double& altitude);
     visualization_msgs::msg::Marker selectionIndicatorMarker(GazeboModel::SharedPtr active_model);
+
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_initial_pose_;
+    void recvInitialPose(const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
 };
 
 }  // namespace road_world_editor

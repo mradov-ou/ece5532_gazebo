@@ -87,7 +87,7 @@ void GazeboModel::initMarkers()
 {
   mesh_marker_.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
   mesh_marker_.mesh_resource = mesh_path_;
-  mesh_marker_.ns = "mesh_markers";
+  mesh_marker_.ns = model_id_;
   mesh_marker_.id = 0;
   mesh_marker_.header.frame_id = frame_id_;
   mesh_marker_.lifetime.sec = 0;

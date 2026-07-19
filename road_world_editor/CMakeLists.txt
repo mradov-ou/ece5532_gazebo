@@ -10,6 +10,9 @@ find_package(interactive_markers REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(lanelet2_core REQUIRED)
+find_package(lanelet2_io REQUIRED)
+find_package(lanelet2_projection REQUIRED)
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 set(CMAKE_AUTOMOC ON)
@@ -34,6 +37,9 @@ target_link_libraries(${PROJECT_NAME}
   visualization_msgs::visualization_msgs__rosidl_typesupport_cpp
   nlohmann_json::nlohmann_json
   ament_index_cpp::ament_index_cpp
+  lanelet2_core::lanelet2_core
+  lanelet2_io::lanelet2_io
+  lanelet2_projection::lanelet2_projection
   Qt5::Widgets
 )
 

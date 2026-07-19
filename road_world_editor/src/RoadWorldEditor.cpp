@@ -10,6 +10,7 @@
 #include <visualization_msgs/msg/marker.hpp>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <lanelet2_projection/LocalCartesian.h>
 #include <nlohmann/json.hpp>
 
 #include <QDir>
@@ -21,8 +22,12 @@
 #include <QMessageBox>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <fstream>
+#include <map>
 #include <sstream>
+#include <tuple>
 
 using namespace visualization_msgs::msg;
 using namespace interactive_markers;
@@ -38,7 +43,8 @@ RoadWorldEditor::RoadWorldEditor(QWidget* parent) : rviz_common::Panel(parent)
   add_model_btn_ = new QPushButton("Add Model");
   save_btn_ = new QPushButton("Save");
   load_btn_ = new QPushButton("Load");
-  export_btn_ = new QPushButton("Export World");
+  export_gazebo_btn_ = new QPushButton("Export World");
+  export_lanelet_btn_ = new QPushButton("Export Lanelet Map");
   model_type_combo_ = new QComboBox();
 
   for (auto& info : ROAD_MODEL_INFO) {
@@ -52,6 +58,10 @@ RoadWorldEditor::RoadWorldEditor(QWidget* parent) : rviz_common::Panel(parent)
   x_edit_ = new QLineEdit();
   y_edit_ = new QLineEdit();
 
+  latitude_edit_ = new QLineEdit("45.0");
+  longitude_edit_ = new QLineEdit("-81.0");
+  altitude_edit_ = new QLineEdit("0.0");
+
   variant_combo_ = new QComboBox();
   variant_combo_->setEnabled(false);
 
@@ -64,6 +74,14 @@ RoadWorldEditor::RoadWorldEditor(QWidget* parent) : rviz_common::Panel(parent)
   position_layout->addWidget(x_edit_);
   position_layout->addWidget(new QLabel("Y:"));
   position_layout->addWidget(y_edit_);
+
+  auto* reference_layout = new QHBoxLayout;
+  reference_layout->addWidget(new QLabel("Lat:"));
+  reference_layout->addWidget(latitude_edit_);
+  reference_layout->addWidget(new QLabel("Lon:"));
+  reference_layout->addWidget(longitude_edit_);
+  reference_layout->addWidget(new QLabel("Alt:"));
+  reference_layout->addWidget(altitude_edit_);
 
   auto* rotate_btn_layout = new QHBoxLayout;
   rotate_btn_layout->addWidget(rotate_ccw_btn_);
@@ -84,14 +102,18 @@ RoadWorldEditor::RoadWorldEditor(QWidget* parent) : rviz_common::Panel(parent)
   model_btn_layout->addWidget(disconnect_btn_);
   model_btn_layout->addWidget(delete_btn_);
   layout->addLayout(model_btn_layout);
+  layout->addWidget(new QLabel("World Origin:"));
+  layout->addLayout(reference_layout);
   layout->addLayout(file_btn_layout);
-  layout->addWidget(export_btn_);
+  layout->addWidget(export_gazebo_btn_);
+  layout->addWidget(export_lanelet_btn_);
   setLayout(layout);
 
   connect(add_model_btn_, &QPushButton::clicked, this, &RoadWorldEditor::addModelClicked);
   connect(save_btn_, &QPushButton::clicked, this, &RoadWorldEditor::saveClicked);
   connect(load_btn_, &QPushButton::clicked, this, &RoadWorldEditor::loadClicked);
-  connect(export_btn_, &QPushButton::clicked, this, &RoadWorldEditor::exportClicked);
+  connect(export_gazebo_btn_, &QPushButton::clicked, this, &RoadWorldEditor::exportGazeboClicked);
+  connect(export_lanelet_btn_, &QPushButton::clicked, this, &RoadWorldEditor::exportLaneletClicked);
   connect(disconnect_btn_, &QPushButton::clicked, this, &RoadWorldEditor::disconnectClicked);
   connect(delete_btn_, &QPushButton::clicked, this, &RoadWorldEditor::deleteClicked);
   connect(rotate_cw_btn_, &QPushButton::clicked, this, &RoadWorldEditor::rotateCwClicked);
@@ -110,6 +132,7 @@ void RoadWorldEditor::onInitialize()
 
   g_common_data.marker_server = std::make_unique<InteractiveMarkerServer>("interactive_markers", node_);
   pub_markers_ = node_->create_publisher<MarkerArray>("markers", 1);
+  sub_initial_pose_ = node_->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 1, std::bind(&RoadWorldEditor::recvInitialPose, this, std::placeholders::_1));
 
   marker_refresh_timer_ = rclcpp::create_timer(node_, node_->get_clock(), std::chrono::milliseconds(50), [this]() {
     MarkerArray marker_array_msg;
@@ -118,11 +141,9 @@ void RoadWorldEditor::onInitialize()
       marker_array_msg.markers.insert(marker_array_msg.markers.end(), new_markers.begin(), new_markers.end());
     }
 
-    int mesh_marker_id = 0;
     for (auto& model : models_) {
-      Marker mesh_marker = model->getMeshMarker();
-      mesh_marker.id = mesh_marker_id++;
-      marker_array_msg.markers.push_back(mesh_marker);
+      auto new_markers = model->getModelMarkers();
+      marker_array_msg.markers.insert(marker_array_msg.markers.end(), new_markers.begin(), new_markers.end());
     }
 
     if (auto active_model = g_common_data.last_updated_model.lock()) {
@@ -266,6 +287,17 @@ void RoadWorldEditor::refreshPositionEdits()
   y_edit_->setText(QString::number(position.y(), 'f', 2));
 }
 
+bool RoadWorldEditor::getReferenceCoordinates(double& latitude, double& longitude, double& altitude)
+{
+  bool lat_ok = false;
+  bool lon_ok = false;
+  bool alt_ok = false;
+  latitude = latitude_edit_->text().toDouble(&lat_ok);
+  longitude = longitude_edit_->text().toDouble(&lon_ok);
+  altitude = altitude_edit_->text().toDouble(&alt_ok);
+  return lat_ok && lon_ok && alt_ok;
+}
+
 void RoadWorldEditor::positionEditFinished()
 {
   auto active_model = g_common_data.last_updated_model.lock();
@@ -376,6 +408,14 @@ void RoadWorldEditor::saveClicked()
   storeDialogDir(filename);
 
   nlohmann::json root;
+  double latitude = 0.0;
+  double longitude = 0.0;
+  double altitude = 0.0;
+  getReferenceCoordinates(latitude, longitude, altitude);
+  root["reference"]["latitude"] = latitude;
+  root["reference"]["longitude"] = longitude;
+  root["reference"]["altitude"] = altitude;
+
   auto& models_json = root["models"] = nlohmann::json::array();
   for (auto& model : models_) {
     nlohmann::json model_json;
@@ -399,6 +439,23 @@ void RoadWorldEditor::saveClicked()
   }
 }
 
+// Replaces the text content of the first <tag>...</tag> found in xml, in place.
+static void setXmlTagValue(std::string& xml, const std::string& tag, const std::string& value)
+{
+  std::string open_tag = "<" + tag + ">";
+  std::string close_tag = "</" + tag + ">";
+  size_t start = xml.find(open_tag);
+  if (start == std::string::npos) {
+    return;
+  }
+  start += open_tag.size();
+  size_t end = xml.find(close_tag, start);
+  if (end == std::string::npos) {
+    return;
+  }
+  xml.replace(start, end - start, value);
+}
+
 static const char* orientationToYaw(const ModelOrientation& orientation)
 {
   switch (orientation) {
@@ -414,7 +471,7 @@ static const char* orientationToYaw(const ModelOrientation& orientation)
   }
 }
 
-void RoadWorldEditor::exportClicked()
+void RoadWorldEditor::exportGazeboClicked()
 {
   QString filename = QFileDialog::getSaveFileName(this, "Export Gazebo World", loadDialogDir(), "SDF world files (*.sdf)");
   if (filename.isEmpty()) {
@@ -424,6 +481,14 @@ void RoadWorldEditor::exportClicked()
     filename += ".sdf";
   }
   storeDialogDir(filename);
+
+  double latitude = 0.0;
+  double longitude = 0.0;
+  double altitude = 0.0;
+  if (!getReferenceCoordinates(latitude, longitude, altitude)) {
+    QMessageBox::warning(this, "Export Gazebo World", "Invalid latitude/longitude/altitude");
+    return;
+  }
 
   std::string world_sdf;
   try {
@@ -440,6 +505,10 @@ void RoadWorldEditor::exportClicked()
     return;
   }
 
+  setXmlTagValue(world_sdf, "latitude_deg", QString::number(latitude, 'f', 8).toStdString());
+  setXmlTagValue(world_sdf, "longitude_deg", QString::number(longitude, 'f', 8).toStdString());
+  setXmlTagValue(world_sdf, "elevation", QString::number(altitude, 'f', 3).toStdString());
+
   size_t insert_pos = world_sdf.rfind("</world>");
   if (insert_pos == std::string::npos) {
     QMessageBox::warning(this, "Export Gazebo World", "World template has no </world> tag");
@@ -453,7 +522,7 @@ void RoadWorldEditor::exportClicked()
     models_sdf << "    <model name=\"" << model->getModelId() << "\">\n"
                << "      <static>true</static>\n"
                << "      <self_collide>false</self_collide>\n"
-               << "      <pose>" << position.x() << " " << position.y() << " 0 0 0 " << orientationToYaw(model->getModelOrientation()) << "</pose>\n"
+               << "      <pose>" << position.x() << " " << position.y() << " -0.045 0 0 " << orientationToYaw(model->getModelOrientation()) << "</pose>\n"
                << "      <include merge=\"true\">\n"
                << "        <uri>" << info.gazebo_model_path << "</uri>\n";
     bool variant_supported = std::find(info.variants.begin(), info.variants.end(), model->getVariant()) != info.variants.end();
@@ -486,6 +555,58 @@ void RoadWorldEditor::exportClicked()
   if (!file) {
     QMessageBox::warning(this, "Export Gazebo World", QString("Failed to write %1").arg(filename));
   }
+}
+
+void RoadWorldEditor::exportLaneletClicked()
+{
+  QString filename = QFileDialog::getSaveFileName(this, "Export Lanelet Map", loadDialogDir(), "OSM files (*.osm)");
+  if (filename.isEmpty()) {
+    return;
+  }
+  if (QFileInfo(filename).suffix().isEmpty()) {
+    filename += ".osm";
+  }
+  storeDialogDir(filename);
+
+  double latitude = 0.0;
+  double longitude = 0.0;
+  double altitude = 0.0;
+  if (!getReferenceCoordinates(latitude, longitude, altitude)) {
+    QMessageBox::warning(this, "Export Lanelet Map", "Invalid latitude/longitude/altitude");
+    return;
+  }
+
+  lanelet::LaneletMap lanelet_map;
+  lanelet::projection::UtmProjector projector(lanelet::Origin({latitude, longitude, altitude}));
+
+  std::vector<lanelet::Lanelet> lanelets;
+  for (auto& model : models_) {
+    auto model_lanelets = model->generateLanelet();
+    lanelets.insert(lanelets.end(), model_lanelets.begin(), model_lanelets.end());
+  }
+
+  std::map<std::tuple<int64_t, int64_t, int64_t>, lanelet::Point3d> canonical_points;
+  auto quantize = [](double v) { return static_cast<int64_t>(std::llround(v * 1000.0)); };
+  auto canonicalizeBound = [&](lanelet::LineString3d bound) {
+    for (size_t i = 0; i < bound.size(); i++) {
+      auto key = std::make_tuple(quantize(bound[i].x()), quantize(bound[i].y()), quantize(bound[i].z()));
+      auto [it, inserted] = canonical_points.try_emplace(key, bound[i]);
+      bound[i] = it->second;
+    }
+  };
+
+  for (auto& l : lanelets) {
+    canonicalizeBound(l.leftBound());
+    canonicalizeBound(l.rightBound());
+
+    // Required for lanelet2 traffic rules / routing to treat these as drivable road lanelets.
+    l.attributes()[lanelet::AttributeName::Subtype] = lanelet::AttributeValueString::Road;
+    l.attributes()[lanelet::AttributeName::Location] = lanelet::AttributeValueString::Urban;
+
+    lanelet_map.add(l);
+  }
+
+  lanelet::write(filename.toStdString(), lanelet_map, projector);
 }
 
 void RoadWorldEditor::loadClicked()
@@ -558,6 +679,11 @@ void RoadWorldEditor::loadClicked()
       }
       models_.push_back(model);
     }
+
+    auto reference_json = root.value("reference", nlohmann::json::object());
+    latitude_edit_->setText(QString::number(reference_json.value("latitude", 45.0), 'f', 8));
+    longitude_edit_->setText(QString::number(reference_json.value("longitude", -81.0), 'f', 8));
+    altitude_edit_->setText(QString::number(reference_json.value("altitude", 0.0), 'f', 3));
   } catch (const std::exception& e) {
     g_common_data.batch_marker_updates = false;
     models_.clear();
@@ -581,6 +707,25 @@ void RoadWorldEditor::loadClicked()
 
   g_common_data.batch_marker_updates = false;
   g_common_data.marker_server->applyChanges();
+}
+
+void RoadWorldEditor::recvInitialPose(const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg)
+{
+  double origin_latitude = 0.0;
+  double origin_longitude = 0.0;
+  double origin_altitude = 0.0;
+  if (!getReferenceCoordinates(origin_latitude, origin_longitude, origin_altitude)) {
+    RCLCPP_WARN(node_->get_logger(), "Invalid reference latitude/longitude/altitude; cannot convert initial pose");
+    return;
+  }
+
+  lanelet::projection::LocalCartesianProjector projector(
+      lanelet::Origin({origin_latitude, origin_longitude, origin_altitude}));
+
+  lanelet::BasicPoint3d enu_position(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
+  lanelet::GPSPoint gps_position = projector.reverse(enu_position);
+
+  RCLCPP_INFO_STREAM(node_->get_logger(), "Clicked point: latitude=" << std::setprecision(8) << gps_position.lat << ", longitude=" << gps_position.lon);
 }
 
 }  // namespace road_world_editor

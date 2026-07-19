@@ -33,6 +33,16 @@ static const std::vector<std::string> TWO_LANE_ROAD_VARIANTS{
     "one_way_two_lane",
 };
 
+enum RoadModelType {
+  Intersection = 0,
+  Straight10m = 1,
+  Straight20m = 2,
+  Straight50m = 3,
+  Straight100m = 4,
+  Curved50m = 5,
+  Curved100m = 6
+};
+
 static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
     {"Intersection",
      "package://road_world_editor/model_meshes/intersection.stl",

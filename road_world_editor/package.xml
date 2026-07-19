@@ -18,6 +18,9 @@
   <depend>qtbase5-dev</depend>
   <depend>nlohmann-json-dev</depend>
   <depend>ament_index_cpp</depend>
+  <depend>lanelet2_core</depend>
+  <depend>lanelet2_io</depend>
+  <depend>lanelet2_projection</depend>
   <exec_depend>ece5532_gazebo</exec_depend>
 
   <export>
