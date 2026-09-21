@@ -15,7 +15,7 @@ class RoadModel : public GazeboModel
 {
   public:
     RoadModel(const Eigen::Vector2d& starting_position, const ModelOrientation& starting_orientation, const std::string& frame_id, std::string model_id = "")
-        : GazeboModel(ROAD_MODEL_INFO[Type].mesh_path, frame_id, model_id)
+        : GazeboModel(ROAD_MODEL_INFO[Type].mesh_path, ROAD_MODEL_INFO[Type].four_lane_mesh_path, frame_id, model_id)
     {
       control_marker_offset_ = ROAD_MODEL_INFO[Type].control_marker_offset;
       model_position_ = starting_position;
@@ -60,9 +60,25 @@ class RoadModel : public GazeboModel
         return curvedRoadLanelets(50.0);
         case Curved100m:
         return curvedRoadLanelets(100.0);
+        case LaneMerge:
+        return laneMergeLanelets();
         default:
         return std::vector<Lanelet>();
       }
+    }
+
+    // Builds one lane-boundary LineString running from local (x_start, y_start) to local
+    // (x_end, y_end) (straight for constant y, tapered when y_start != y_end), projected into
+    // the map frame. `reversed` swaps the point order so the line runs from the end point to
+    // the start point instead -- this file's convention for encoding a lanelet's travel
+    // direction, since two bounds sharing the same order must travel the same direction.
+    LineString3d buildLaneBoundary(double x_start, double y_start, double x_end, double y_end, bool reversed) {
+      auto toMapPoint = [this](double x, double y) {
+        return Point3d(utils::getId(), utils::to3D(BasicPoint2d(offsetPoint(model_position_, Eigen::Vector2d(x, y), model_orientation_))));
+      };
+      Point3d p_start = toMapPoint(x_start, y_start);
+      Point3d p_end = toMapPoint(x_end, y_end);
+      return reversed ? LineString3d(utils::getId(), {p_end, p_start}) : LineString3d(utils::getId(), {p_start, p_end});
     }
 
     std::vector<Lanelet> intersectionLanelets() {
@@ -145,42 +161,83 @@ class RoadModel : public GazeboModel
       return lanelets;
     }
 
+    // Builds `lane_count` adjacent 4m-wide lanelets covering local y in [0, lane_count * 4]
+    // (mirrored onto negative y by the caller when needed), each running the full
+    // [x_start, x_end] length. Consecutive lanelets share the exact same boundary LineString
+    // object (never a fresh, merely-coincident copy) so lanelet2's routing graph recognizes
+    // them as lane-change neighbors. `first_bound` seeds the innermost shared edge -- pass the
+    // road's centerline (or its .invert()) to butt this chain up against an opposite-direction
+    // chain built the same way.
+    std::vector<Lanelet> buildLaneChain(int lane_count, double x_start, double y_start_sign, double x_end, double y_end_sign, bool reversed, const LineString3d& first_bound) {
+      std::vector<Lanelet> lanelets;
+      LineString3d inner_bound = first_bound;
+      for (int i = 0; i < lane_count; i++) {
+        LineString3d outer_bound = buildLaneBoundary(x_start, y_start_sign * (i + 1) * 4.0, x_end, y_end_sign * (i + 1) * 4.0, reversed);
+        Lanelet lanelet;
+        lanelet.setLeftBound(inner_bound);
+        lanelet.setRightBound(outer_bound);
+        lanelets.push_back(lanelet);
+        inner_bound = outer_bound;
+      }
+      return lanelets;
+    }
+
     std::vector<Lanelet> straightRoadLanelets(const double& road_segment_length) {
-      Lanelet left_lanelet;
-      Lanelet right_lanelet;
+      bool four_lane = variant_.find("four_lane") != variant_.npos;
+      bool two_way = variant_.find("two_way") != variant_.npos;
+      int lanes_per_direction = four_lane ? 2 : 1;
 
-      BasicPoint2d p1c(model_position_);
-      BasicPoint2d p2c(offsetPoint(model_position_, Eigen::Vector2d(road_segment_length, 0.0), model_orientation_));
-      BasicPoint2d p1l(offsetPoint(model_position_, Eigen::Vector2d(road_segment_length, 4.0), model_orientation_));
-      BasicPoint2d p2l(offsetPoint(model_position_, Eigen::Vector2d(0.0, 4.0), model_orientation_));
-      BasicPoint2d p1r(offsetPoint(model_position_, Eigen::Vector2d(0.0, -4.0), model_orientation_));
-      BasicPoint2d p2r(offsetPoint(model_position_, Eigen::Vector2d(road_segment_length, -4.0), model_orientation_));
+      LineString3d center_lane_marking = buildLaneBoundary(0.0, 0.0, road_segment_length, 0.0, false);
 
-      LineString3d center_lane_marking(utils::getId(), {
-        Point3d(utils::getId(), utils::to3D(p1c)),
-        Point3d(utils::getId(), utils::to3D(p2c)),
-      });
-      LineString3d left_lane_marking(utils::getId(), {
-        Point3d(utils::getId(), utils::to3D(p1l)),
-        Point3d(utils::getId(), utils::to3D(p2l)),
-      });
-      LineString3d right_lane_marking(utils::getId(), {
-        Point3d(utils::getId(), utils::to3D(p1r)),
-        Point3d(utils::getId(), utils::to3D(p2r)),
-      });
+      // The right-hand (negative-y) lanes always travel local +x.
+      auto lanelets = buildLaneChain(lanes_per_direction, 0.0, -1.0, road_segment_length, -1.0, false, center_lane_marking);
 
-      right_lanelet.setLeftBound(center_lane_marking);
-      right_lanelet.setRightBound(right_lane_marking);
-      // left_lanelet travels the opposite direction of right_lanelet, sharing the same
-      // centerline as its own LEFT bound (right-hand traffic: the centerline is on your
-      // left when you're in the oncoming lane) via an inverted view of that line. This
-      // must be the LEFT bound specifically -- lanelet2's OSM writer only preserves an
-      // inverted shared LineString's point order when it's referenced as leftBound; as
-      // rightBound the inversion is silently dropped on a save/reload round-trip, which
-      // desyncs this lanelet's two bounds and leaves it unroutable.
-      left_lanelet.setLeftBound(center_lane_marking.invert());
-      left_lanelet.setRightBound(left_lane_marking);
-      return std::vector<Lanelet>{left_lanelet, right_lanelet};
+      // The left-hand (positive-y) lanes travel the opposite direction (-x) when two-way --
+      // sharing the centerline as their innermost lanelet's LEFT bound specifically, since
+      // lanelet2's OSM writer drops an inverted LineString's point order when it's a
+      // rightBound, desyncing that lanelet's two bounds on a save/reload round-trip -- or the
+      // same +x direction as the right-hand lanes when one-way (no oncoming traffic).
+      auto left_lanelets = buildLaneChain(lanes_per_direction, 0.0, 1.0, road_segment_length, 1.0, two_way, two_way ? center_lane_marking.invert() : center_lane_marking);
+      lanelets.insert(lanelets.end(), left_lanelets.begin(), left_lanelets.end());
+      return lanelets;
+    }
+
+    std::vector<Lanelet> laneMergeLanelets() {
+      constexpr double kLength = 50.0;
+      // Local x=0 is this model's wide (four-lane) end and x=kLength its narrow (two-lane)
+      // end -- see ROAD_MODEL_INFO's port_offsets. Each side's inner (through) lane stays 4m
+      // wide for the full length; its outer (merging) lane tapers from 4m wide at the wide end
+      // down to a single point at the narrow end, where it disappears into the through lane.
+      bool two_way = variant_.find("two_way") != variant_.npos;
+
+      LineString3d center_lane_marking = buildLaneBoundary(0.0, 0.0, kLength, 0.0, false);
+
+      LineString3d right_inner_bound = buildLaneBoundary(0.0, -4.0, kLength, -4.0, false);
+      Lanelet right_through;
+      right_through.setLeftBound(center_lane_marking);
+      right_through.setRightBound(right_inner_bound);
+
+      LineString3d right_outer_bound = buildLaneBoundary(0.0, -8.0, kLength, -4.0, false);
+      Lanelet right_merge;
+      right_merge.setLeftBound(right_inner_bound);
+      right_merge.setRightBound(right_outer_bound);
+
+      // See straightRoadLanelets(): the left-hand side travels -x (oncoming traffic) when
+      // two-way, sharing the centerline as its innermost lanelet's LEFT bound specifically to
+      // survive an OSM save/reload round-trip; otherwise it travels the same +x direction as
+      // the right-hand side (one-way, both ends narrowing from four lanes to two in the same
+      // direction of travel).
+      LineString3d left_inner_bound = buildLaneBoundary(0.0, 4.0, kLength, 4.0, two_way);
+      Lanelet left_through;
+      left_through.setLeftBound(two_way ? center_lane_marking.invert() : center_lane_marking);
+      left_through.setRightBound(left_inner_bound);
+
+      LineString3d left_outer_bound = buildLaneBoundary(0.0, 8.0, kLength, 4.0, two_way);
+      Lanelet left_merge;
+      left_merge.setLeftBound(left_inner_bound);
+      left_merge.setRightBound(left_outer_bound);
+
+      return std::vector<Lanelet>{right_through, right_merge, left_through, left_merge};
     }
 
     std::vector<Lanelet> curvedRoadLanelets(const double& curve_radius) {

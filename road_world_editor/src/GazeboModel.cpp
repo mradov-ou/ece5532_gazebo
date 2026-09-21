@@ -3,8 +3,8 @@
 
 namespace road_world_editor {
 
-GazeboModel::GazeboModel(const std::string& mesh_path, const std::string& frame_id, const std::string& model_id)
-    : mesh_path_(mesh_path), frame_id_(frame_id), model_id_(model_id.empty() ? generateUuid() : model_id)
+GazeboModel::GazeboModel(const std::string& mesh_path, const std::string& four_lane_mesh_path, const std::string& frame_id, const std::string& model_id)
+    : mesh_path_(mesh_path), four_lane_mesh_path_(four_lane_mesh_path), frame_id_(frame_id), model_id_(model_id.empty() ? generateUuid() : model_id)
 {
 }
 
@@ -83,10 +83,16 @@ std::vector<visualization_msgs::msg::Marker> GazeboModel::getPortMarkers()
   return markers;
 }
 
+void GazeboModel::updateMeshResource()
+{
+  bool use_four_lane = !four_lane_mesh_path_.empty() && variant_.find("four_lane") != variant_.npos;
+  mesh_marker_.mesh_resource = use_four_lane ? four_lane_mesh_path_ : mesh_path_;
+}
+
 void GazeboModel::initMarkers()
 {
   mesh_marker_.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
-  mesh_marker_.mesh_resource = mesh_path_;
+  updateMeshResource();
   mesh_marker_.ns = model_id_;
   mesh_marker_.id = 0;
   mesh_marker_.header.frame_id = frame_id_;

@@ -15,6 +15,10 @@ class ModelPort;
 struct RoadModelInfo {
     std::string name;
     std::string mesh_path;
+    // Preview mesh to use instead of mesh_path when the model's selected variant is a
+    // four-lane one; empty for models with no four-lane preview mesh (e.g. Curved 50m, which
+    // has no four-lane variant at all).
+    std::string four_lane_mesh_path;
     std::string gazebo_model_path;
     std::vector<std::string> variants;
     Eigen::Vector2d control_marker_offset;
@@ -32,6 +36,10 @@ static const std::vector<std::string> TWO_LANE_ROAD_VARIANTS{
     "two_way_two_lane",
     "one_way_two_lane",
 };
+static const std::vector<std::string> LANE_MERGE_VARIANTS{
+    "two_way_merge",
+    "one_way_merge",
+};
 
 enum RoadModelType {
   Intersection = 0,
@@ -40,12 +48,14 @@ enum RoadModelType {
   Straight50m = 3,
   Straight100m = 4,
   Curved50m = 5,
-  Curved100m = 6
+  Curved100m = 6,
+  LaneMerge = 7
 };
 
-static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
+static const std::array<RoadModelInfo, 8> ROAD_MODEL_INFO{{
     {"Intersection",
      "package://road_world_editor/model_meshes/intersection.stl",
+     "",
      "package://ece5532_gazebo/models/intersection",
      {},
      Eigen::Vector2d(0, 0),
@@ -56,7 +66,8 @@ static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
          Eigen::Vector2d(0, -20),
      }},
     {"Straight 10m",
-     "package://road_world_editor/model_meshes/straight_10m.stl",
+     "package://road_world_editor/model_meshes/straight_two_lane_10m.stl",
+     "package://road_world_editor/model_meshes/straight_four_lane_10m.stl",
      "package://ece5532_gazebo/models/straight_road_10m",
      ALL_ROAD_VARIANTS,
      Eigen::Vector2d(5, 0),
@@ -65,7 +76,8 @@ static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
          Eigen::Vector2d(10, 0),
      }},
     {"Straight 20m",
-     "package://road_world_editor/model_meshes/straight_20m.stl",
+     "package://road_world_editor/model_meshes/straight_two_lane_20m.stl",
+     "package://road_world_editor/model_meshes/straight_four_lane_20m.stl",
      "package://ece5532_gazebo/models/straight_road_20m",
      ALL_ROAD_VARIANTS,
      Eigen::Vector2d(10, 0),
@@ -74,7 +86,8 @@ static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
          Eigen::Vector2d(20, 0),
      }},
     {"Straight 50m",
-     "package://road_world_editor/model_meshes/straight_50m.stl",
+     "package://road_world_editor/model_meshes/straight_two_lane_50m.stl",
+     "package://road_world_editor/model_meshes/straight_four_lane_50m.stl",
      "package://ece5532_gazebo/models/straight_road_50m",
      ALL_ROAD_VARIANTS,
      Eigen::Vector2d(25, 0),
@@ -83,7 +96,8 @@ static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
          Eigen::Vector2d(50, 0),
      }},
     {"Straight 100m",
-     "package://road_world_editor/model_meshes/straight_100m.stl",
+     "package://road_world_editor/model_meshes/straight_two_lane_100m.stl",
+     "package://road_world_editor/model_meshes/straight_four_lane_100m.stl",
      "package://ece5532_gazebo/models/straight_road_100m",
      ALL_ROAD_VARIANTS,
      Eigen::Vector2d(50, 0),
@@ -93,6 +107,7 @@ static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
      }},
     {"Curved 50m",
      "package://road_world_editor/model_meshes/curved_50m.stl",
+     "",
      "package://ece5532_gazebo/models/curved_road_50m",
      TWO_LANE_ROAD_VARIANTS,
      Eigen::Vector2d(50 * 0.5 * sqrt(2), 50 * (0.5 * sqrt(2) - 1)),
@@ -101,13 +116,24 @@ static const std::array<RoadModelInfo, 7> ROAD_MODEL_INFO{{
          Eigen::Vector2d(50, -50),
      }},
     {"Curved 100m",
-     "package://road_world_editor/model_meshes/curved_100m.stl",
+     "package://road_world_editor/model_meshes/curved_two_lane_100m.stl",
+     "package://road_world_editor/model_meshes/curved_four_lane_100m.stl",
      "package://ece5532_gazebo/models/curved_road_100m",
      ALL_ROAD_VARIANTS,
      Eigen::Vector2d(100 * 0.5 * sqrt(2), 100 * (0.5 * sqrt(2) - 1)),
      {
          Eigen::Vector2d(0, 0),
          Eigen::Vector2d(100, -100),
+     }},
+    {"Lane Merge",
+     "package://road_world_editor/model_meshes/lane_merge.stl",
+     "",
+     "package://ece5532_gazebo/models/lane_merge",
+     LANE_MERGE_VARIANTS,
+     Eigen::Vector2d(25, 0),
+     {
+         Eigen::Vector2d(0, 0),
+         Eigen::Vector2d(50, 0),
      }},
 }};
 

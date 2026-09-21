@@ -12,7 +12,7 @@ class GazeboModel : public std::enable_shared_from_this<GazeboModel>
   public:
     friend class ModelPort;
     using SharedPtr = std::shared_ptr<GazeboModel>;
-    GazeboModel(const std::string& mesh_path, const std::string& frame_id, const std::string& model_id = "");
+    GazeboModel(const std::string& mesh_path, const std::string& four_lane_mesh_path, const std::string& frame_id, const std::string& model_id = "");
     virtual ~GazeboModel() {}
     virtual void initPorts(const std::vector<std::string>& port_ids = std::vector<std::string>()) = 0;
     virtual int getModelType() const = 0;
@@ -25,7 +25,7 @@ class GazeboModel : public std::enable_shared_from_this<GazeboModel>
     const ModelOrientation& getModelOrientation() const { return model_orientation_; }
     const std::string& getModelId() const { return model_id_; }
     const std::string& getVariant() const { return variant_; }
-    void setVariant(const std::string& variant) { variant_ = variant; }
+    void setVariant(const std::string& variant) { variant_ = variant; updateMeshResource(); }
     void setModelPosition(const Eigen::Vector2d& new_position);
     void rotateClockwise();
     void rotateCounterClockwise();
@@ -47,6 +47,7 @@ class GazeboModel : public std::enable_shared_from_this<GazeboModel>
 
   private:
     std::string mesh_path_;
+    std::string four_lane_mesh_path_;
     bool moved_ = true;
     visualization_msgs::msg::Marker mesh_marker_;
     visualization_msgs::msg::InteractiveMarker control_marker_;
@@ -55,6 +56,9 @@ class GazeboModel : public std::enable_shared_from_this<GazeboModel>
     void move(const Eigen::Vector2d& new_model_pos);
     void rotate(const ModelOrientation& new_model_orientation);
     void moveMarkers();
+    // Points mesh_marker_ at four_lane_mesh_path_ instead of mesh_path_ when the current
+    // variant is a four-lane one and a four-lane preview mesh exists for this model type.
+    void updateMeshResource();
     virtual void initMarkers();
     void processMarkerFeedback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback);
 };

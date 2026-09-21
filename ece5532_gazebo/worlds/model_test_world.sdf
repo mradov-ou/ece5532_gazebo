@@ -186,6 +186,56 @@
       </include>
     </model>
 
+    <model name="four_lane_curve_1">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>130 130 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/curved_road_100m</uri>
+        <experimental:params>
+          <visual element_id="road::road_visual" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/curved_road_100m/meshes/one_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </visual>
+          <collision element_id="road::road_collision" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/curved_road_100m/meshes/one_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </collision>
+        </experimental:params>
+      </include>
+    </model>
+
+    <model name="four_lane_curve_2">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>130 -130 -0.045 3.1415926535 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/curved_road_100m</uri>
+        <experimental:params>
+          <visual element_id="road::road_visual" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/curved_road_100m/meshes/two_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </visual>
+          <collision element_id="road::road_collision" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/curved_road_100m/meshes/two_way_four_lane.obj</uri>
+              </mesh>
+            </geometry>
+          </collision>
+        </experimental:params>
+      </include>
+    </model>
+
     <model name="straight_3">
       <static>true</static>
       <self_collide>false</self_collide>
@@ -462,6 +512,40 @@
       <pose>50 10 -0.045 3.1415926535 0 0</pose>
       <include merge="true">
         <uri>package://ece5532_gazebo/models/curved_road_50m</uri>
+      </include>
+    </model>
+
+    <model name="lane_merge">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>5 -50 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/lane_merge</uri>
+      </include>
+    </model>
+
+    <model name="lane_merge2">
+      <static>true</static>
+      <self_collide>false</self_collide>
+      <pose>5 50 -0.045 0 0 0</pose>
+      <include merge="true">
+        <uri>package://ece5532_gazebo/models/lane_merge</uri>
+        <experimental:params>
+          <visual element_id="road::road_visual" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/lane_merge/meshes/one_way_merge.obj</uri>
+              </mesh>
+            </geometry>
+          </visual>
+          <collision element_id="road::road_collision" action="modify">
+            <geometry>
+              <mesh>
+                <uri>package://ece5532_gazebo/models/lane_merge/meshes/one_way_merge.obj</uri>
+              </mesh>
+            </geometry>
+          </collision>
+        </experimental:params>
       </include>
     </model>
 
