@@ -15,7 +15,8 @@
   <depend>pluginlib</depend>
   <depend>interactive_markers</depend>
   <depend>visualization_msgs</depend>
-  <depend>qtbase5-dev</depend>
+  <depend condition="$ROS_DISTRO == jazzy">qtbase5-dev</depend>
+  <depend condition="$ROS_DISTRO != jazzy">qt6-base-dev</depend>
   <depend>nlohmann-json-dev</depend>
   <depend>ament_index_cpp</depend>
   <depend>lanelet2_core</depend>

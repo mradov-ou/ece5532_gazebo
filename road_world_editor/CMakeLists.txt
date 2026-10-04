@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.20)
 project(road_world_editor)
 set(CMAKE_CXX_STANDARD 20)
 
@@ -14,7 +14,13 @@ find_package(lanelet2_core REQUIRED)
 find_package(lanelet2_io REQUIRED)
 find_package(lanelet2_projection REQUIRED)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+# Use the same Qt major version as rviz_common (Qt5 on Jazzy, Qt6 on Lyrical)
+if(TARGET Qt6::Widgets)
+  set(QT_VERSION_MAJOR 6)
+else()
+  set(QT_VERSION_MAJOR 5)
+endif()
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 set(CMAKE_AUTOMOC ON)
 
 include_directories(include)
@@ -40,7 +46,7 @@ target_link_libraries(${PROJECT_NAME}
   lanelet2_core::lanelet2_core
   lanelet2_io::lanelet2_io
   lanelet2_projection::lanelet2_projection
-  Qt5::Widgets
+  Qt${QT_VERSION_MAJOR}::Widgets
 )
 
 pluginlib_export_plugin_description_file(rviz_common plugin_description.xml)
