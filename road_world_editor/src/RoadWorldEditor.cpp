@@ -577,7 +577,7 @@ void RoadWorldEditor::exportLaneletClicked()
   }
 
   lanelet::LaneletMap lanelet_map;
-  lanelet::projection::UtmProjector projector(lanelet::Origin({latitude, longitude, altitude}));
+  lanelet::projection::LocalCartesianProjector projector(lanelet::Origin({latitude, longitude, altitude}));
 
   std::vector<lanelet::Lanelet> lanelets;
   for (auto& model : models_) {
