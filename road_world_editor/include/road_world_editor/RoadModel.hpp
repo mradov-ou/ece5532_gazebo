@@ -2,7 +2,9 @@
 #include <road_world_editor/GazeboModel.hpp>
 #include <road_world_editor/ModelPort.hpp>
 
+#include <algorithm>
 #include <array>
+#include <functional>
 #include <tuple>
 #include <utility>
 
@@ -81,6 +83,18 @@ class RoadModel : public GazeboModel
       return reversed ? LineString3d(utils::getId(), {p_end, p_start}) : LineString3d(utils::getId(), {p_start, p_end});
     }
 
+    // Lane-marking tags for a boundary LineString. lanelet2's traffic rules only permit a lane
+    // change across a shared boundary tagged line_thin/dashed; solid, virtual, or untagged
+    // boundaries all forbid it. Since LineString3d is a handle to shared data, tagging a bound
+    // also tags it for every lanelet that shares it.
+    static void markDashed(LineString3d& ls) { setLineType(ls, AttributeValueString::LineThin, AttributeValueString::Dashed); }
+    static void markSolid(LineString3d& ls) { setLineType(ls, AttributeValueString::LineThin, AttributeValueString::Solid); }
+    static void markVirtual(LineString3d& ls) { ls.attributes()[AttributeName::Type] = AttributeValueString::Virtual; }
+    static void setLineType(LineString3d& ls, const char* type, const char* subtype) {
+      ls.attributes()[AttributeName::Type] = type;
+      ls.attributes()[AttributeName::Subtype] = subtype;
+    }
+
     std::vector<Lanelet> intersectionLanelets() {
       constexpr double kLaneWidth = 4.0;
       constexpr double kRightTurnRadius = 18.0;
@@ -107,9 +121,15 @@ class RoadModel : public GazeboModel
           left_pts.push_back(toPoint3d(center_pts[i] + lateral));
           right_pts.push_back(toPoint3d(center_pts[i] - lateral));
         }
+        // Intersection lanelets overlap each other and have no painted lines, so their bounds
+        // are virtual (no lane changes inside the intersection).
+        LineString3d left_bound(utils::getId(), left_pts);
+        LineString3d right_bound(utils::getId(), right_pts);
+        markVirtual(left_bound);
+        markVirtual(right_bound);
         Lanelet lanelet;
-        lanelet.setLeftBound(LineString3d(utils::getId(), left_pts));
-        lanelet.setRightBound(LineString3d(utils::getId(), right_pts));
+        lanelet.setLeftBound(left_bound);
+        lanelet.setRightBound(right_bound);
         return lanelet;
       };
 
@@ -161,125 +181,153 @@ class RoadModel : public GazeboModel
       return lanelets;
     }
 
-    // Builds `lane_count` adjacent 4m-wide lanelets covering local y in [0, lane_count * 4]
-    // (mirrored onto negative y by the caller when needed), each running the full
-    // [x_start, x_end] length. Consecutive lanelets share the exact same boundary LineString
-    // object (never a fresh, merely-coincident copy) so lanelet2's routing graph recognizes
-    // them as lane-change neighbors. `first_bound` seeds the innermost shared edge -- pass the
-    // road's centerline (or its .invert()) to butt this chain up against an opposite-direction
-    // chain built the same way.
-    std::vector<Lanelet> buildLaneChain(int lane_count, double x_start, double y_start_sign, double x_end, double y_end_sign, bool reversed, const LineString3d& first_bound) {
+    // Builds one lane-boundary LineString at signed lateral offset `offset` from the road's
+    // centerline (positive = local +y side at the road's start), running the road's full
+    // length, with `reversed` as in buildLaneBoundary(). Lets the same lane-chain logic build
+    // straight and curved roads alike.
+    using BoundaryBuilder = std::function<LineString3d(double offset, bool reversed)>;
+
+    // Builds `lane_count` adjacent 4m-wide lanelets on one side of the road (`side_sign` =
+    // -1.0 for the negative-y side, +1.0 for the positive-y side), each running the road's
+    // full length. Consecutive lanelets share the exact same boundary LineString object
+    // (never a fresh, merely-coincident copy) so lanelet2's routing graph recognizes them as
+    // lane-change neighbors. `first_bound` seeds the innermost shared edge -- pass the road's
+    // centerline (or its .invert()) to butt this chain up against an opposite-direction chain
+    // built the same way. Edges shared between two lanes of the chain are dashed (lane
+    // changes allowed); the outermost edge is solid. `inner_bound_on_right` puts each lane's
+    // inner edge on its RIGHT instead of its left, for a chain on the left-hand (positive-y)
+    // side of a one-way road, whose lanes travel +x with the centerline to their right.
+    std::vector<Lanelet> buildLaneChain(int lane_count, double side_sign, bool reversed, const LineString3d& first_bound, bool inner_bound_on_right, const BoundaryBuilder& build_boundary) {
       std::vector<Lanelet> lanelets;
       LineString3d inner_bound = first_bound;
       for (int i = 0; i < lane_count; i++) {
-        LineString3d outer_bound = buildLaneBoundary(x_start, y_start_sign * (i + 1) * 4.0, x_end, y_end_sign * (i + 1) * 4.0, reversed);
+        LineString3d outer_bound = build_boundary(side_sign * (i + 1) * 4.0, reversed);
+        if (i + 1 < lane_count) {
+          markDashed(outer_bound);
+        } else {
+          markSolid(outer_bound);
+        }
         Lanelet lanelet;
-        lanelet.setLeftBound(inner_bound);
-        lanelet.setRightBound(outer_bound);
+        lanelet.setLeftBound(inner_bound_on_right ? outer_bound : inner_bound);
+        lanelet.setRightBound(inner_bound_on_right ? inner_bound : outer_bound);
         lanelets.push_back(lanelet);
         inner_bound = outer_bound;
       }
       return lanelets;
     }
 
-    std::vector<Lanelet> straightRoadLanelets(const double& road_segment_length) {
+    // Builds every lanelet of a constant-width road (straight or curved) for the current
+    // variant: one or two lanes per side, two-way or one-way.
+    std::vector<Lanelet> multiLaneRoadLanelets(const BoundaryBuilder& build_boundary) {
       bool four_lane = variant_.find("four_lane") != variant_.npos;
       bool two_way = variant_.find("two_way") != variant_.npos;
       int lanes_per_direction = four_lane ? 2 : 1;
 
-      LineString3d center_lane_marking = buildLaneBoundary(0.0, 0.0, road_segment_length, 0.0, false);
+      // The centerline separates opposing traffic on a two-way road (solid, no crossing) but
+      // two same-direction lanes on a one-way road (dashed, lane changes allowed).
+      LineString3d center_lane_marking = build_boundary(0.0, false);
+      if (two_way) {
+        markSolid(center_lane_marking);
+      } else {
+        markDashed(center_lane_marking);
+      }
 
-      // The right-hand (negative-y) lanes always travel local +x.
-      auto lanelets = buildLaneChain(lanes_per_direction, 0.0, -1.0, road_segment_length, -1.0, false, center_lane_marking);
+      // The right-hand (negative-y) lanes always travel the road's forward direction.
+      auto lanelets = buildLaneChain(lanes_per_direction, -1.0, false, center_lane_marking, false, build_boundary);
 
-      // The left-hand (positive-y) lanes travel the opposite direction (-x) when two-way --
+      // The left-hand (positive-y) lanes travel the opposite direction when two-way --
       // sharing the centerline as their innermost lanelet's LEFT bound specifically, since
       // lanelet2's OSM writer drops an inverted LineString's point order when it's a
       // rightBound, desyncing that lanelet's two bounds on a save/reload round-trip -- or the
-      // same +x direction as the right-hand lanes when one-way (no oncoming traffic).
-      auto left_lanelets = buildLaneChain(lanes_per_direction, 0.0, 1.0, road_segment_length, 1.0, two_way, two_way ? center_lane_marking.invert() : center_lane_marking);
+      // same forward direction as the right-hand lanes when one-way (no oncoming traffic), in
+      // which case the centerline is on their right and becomes the innermost lanelet's RIGHT
+      // bound, making it the lane-change neighbor of the right-hand chain's innermost lanelet.
+      auto left_lanelets = buildLaneChain(lanes_per_direction, 1.0, two_way, two_way ? center_lane_marking.invert() : center_lane_marking, !two_way, build_boundary);
       lanelets.insert(lanelets.end(), left_lanelets.begin(), left_lanelets.end());
       return lanelets;
+    }
+
+    std::vector<Lanelet> straightRoadLanelets(const double& road_segment_length) {
+      return multiLaneRoadLanelets([&](double offset, bool reversed) {
+        return buildLaneBoundary(0.0, offset, road_segment_length, offset, reversed);
+      });
     }
 
     std::vector<Lanelet> laneMergeLanelets() {
       constexpr double kLength = 50.0;
       // Local x=0 is this model's wide (four-lane) end and x=kLength its narrow (two-lane)
       // end -- see ROAD_MODEL_INFO's port_offsets. Each side's inner (through) lane stays 4m
-      // wide for the full length; its outer (merging) lane tapers from 4m wide at the wide end
-      // down to a single point at the narrow end, where it disappears into the through lane.
+      // wide for the full length. Its outer (merging) lane is 4m wide at the wide end and ends
+      // at the narrow end exactly on top of the through lane, with BOTH bounds meeting the
+      // two-lane road's bounds there: the outer edge tapers in to the through lane's outer
+      // edge while the merge lane's own inner edge (virtual, not painted) angles across to the
+      // centerline. That way the merge lane has the same predecessor/successor as the through
+      // lane at the narrow end (a fork or merge in lanelet2's routing graph) instead of
+      // dead-ending at a zero-width point that's only reachable by a lane change.
       bool two_way = variant_.find("two_way") != variant_.npos;
 
       LineString3d center_lane_marking = buildLaneBoundary(0.0, 0.0, kLength, 0.0, false);
+      if (two_way) {
+        markSolid(center_lane_marking);
+      } else {
+        markDashed(center_lane_marking);
+      }
 
       LineString3d right_inner_bound = buildLaneBoundary(0.0, -4.0, kLength, -4.0, false);
+      markDashed(right_inner_bound);
       Lanelet right_through;
       right_through.setLeftBound(center_lane_marking);
       right_through.setRightBound(right_inner_bound);
 
+      LineString3d right_merge_inner_bound = buildLaneBoundary(0.0, -4.0, kLength, 0.0, false);
       LineString3d right_outer_bound = buildLaneBoundary(0.0, -8.0, kLength, -4.0, false);
+      markVirtual(right_merge_inner_bound);
+      markSolid(right_outer_bound);
       Lanelet right_merge;
-      right_merge.setLeftBound(right_inner_bound);
+      right_merge.setLeftBound(right_merge_inner_bound);
       right_merge.setRightBound(right_outer_bound);
 
-      // See straightRoadLanelets(): the left-hand side travels -x (oncoming traffic) when
+      // See multiLaneRoadLanelets(): the left-hand side travels -x (oncoming traffic) when
       // two-way, sharing the centerline as its innermost lanelet's LEFT bound specifically to
       // survive an OSM save/reload round-trip; otherwise it travels the same +x direction as
       // the right-hand side (one-way, both ends narrowing from four lanes to two in the same
-      // direction of travel).
+      // direction of travel), with the centerline and inner edges on its right instead.
       LineString3d left_inner_bound = buildLaneBoundary(0.0, 4.0, kLength, 4.0, two_way);
+      markDashed(left_inner_bound);
       Lanelet left_through;
-      left_through.setLeftBound(two_way ? center_lane_marking.invert() : center_lane_marking);
-      left_through.setRightBound(left_inner_bound);
+      left_through.setLeftBound(two_way ? center_lane_marking.invert() : left_inner_bound);
+      left_through.setRightBound(two_way ? left_inner_bound : center_lane_marking);
 
+      LineString3d left_merge_inner_bound = buildLaneBoundary(0.0, 4.0, kLength, 0.0, two_way);
       LineString3d left_outer_bound = buildLaneBoundary(0.0, 8.0, kLength, 4.0, two_way);
+      markVirtual(left_merge_inner_bound);
+      markSolid(left_outer_bound);
       Lanelet left_merge;
-      left_merge.setLeftBound(left_inner_bound);
-      left_merge.setRightBound(left_outer_bound);
+      left_merge.setLeftBound(two_way ? left_merge_inner_bound : left_outer_bound);
+      left_merge.setRightBound(two_way ? left_outer_bound : left_merge_inner_bound);
 
       return std::vector<Lanelet>{right_through, right_merge, left_through, left_merge};
     }
 
+    // The curve starts at local (0, 0) heading +x and turns clockwise through 90 degrees about
+    // local (0, -curve_radius), ending at (curve_radius, -curve_radius) heading -y -- see
+    // ROAD_MODEL_INFO's port_offsets. A boundary at lateral offset d is the concentric arc of
+    // radius curve_radius + d, so the negative-y (right-hand) lanes are on the inside of the
+    // curve and every boundary is sampled at the same 2-degree arc angles.
     std::vector<Lanelet> curvedRoadLanelets(const double& curve_radius) {
-      Lanelet left_lanelet;
-      Lanelet right_lanelet;
-      std::vector<Point3d> center_points;
-      std::vector<Point3d> left_points;
-      std::vector<Point3d> right_points;
-      for (int arc_angle_deg = 0; arc_angle_deg <= 90; arc_angle_deg += 2) {
-        center_points.push_back(Point3d(utils::getId(), utils::to3D(
-          BasicPoint2d(offsetPoint(model_position_,
-            Eigen::Vector2d(
-              curve_radius * sin(M_PI / 180.0 * arc_angle_deg),
-              curve_radius * (cos(M_PI / 180.0 * arc_angle_deg) - 1.0)
-            ), model_orientation_
-          )))));
-        left_points.push_back(Point3d(utils::getId(), utils::to3D(
-          BasicPoint2d(offsetPoint(model_position_,
-            Eigen::Vector2d(
-              (curve_radius + 4.0) * sin(M_PI / 180.0 * (90 - arc_angle_deg)),
-              (curve_radius + 4.0) * cos(M_PI / 180.0 * (90 - arc_angle_deg)) - curve_radius
-            ), model_orientation_
-          )))));
-        right_points.push_back(Point3d(utils::getId(), utils::to3D(
-          BasicPoint2d(offsetPoint(model_position_,
-            Eigen::Vector2d(
-              (curve_radius - 4.0) * sin(M_PI / 180.0 * arc_angle_deg),
-              (curve_radius - 4.0) * cos(M_PI / 180.0 * arc_angle_deg) - curve_radius
-            ), model_orientation_
-          )))));
-      }
-      LineString3d center_lane_marking(utils::getId(), center_points);
-      LineString3d left_lane_marking(utils::getId(), left_points);
-      LineString3d right_lane_marking(utils::getId(), right_points);
-
-      right_lanelet.setLeftBound(center_lane_marking);
-      right_lanelet.setRightBound(right_lane_marking);
-      // See straightRoadLanelets(): the inverted shared centerline must be left_lanelet's
-      // LEFT bound specifically, or the inversion is lost on an OSM save/reload round-trip.
-      left_lanelet.setLeftBound(center_lane_marking.invert());
-      left_lanelet.setRightBound(left_lane_marking);
-      return std::vector<Lanelet>{left_lanelet, right_lanelet};
+      return multiLaneRoadLanelets([&](double offset, bool reversed) {
+        std::vector<Point3d> points;
+        double radius = curve_radius + offset;
+        for (int arc_angle_deg = 0; arc_angle_deg <= 90; arc_angle_deg += 2) {
+          double arc_angle_rad = M_PI / 180.0 * arc_angle_deg;
+          Eigen::Vector2d local_pt(radius * sin(arc_angle_rad), radius * cos(arc_angle_rad) - curve_radius);
+          points.push_back(Point3d(utils::getId(), utils::to3D(BasicPoint2d(offsetPoint(model_position_, local_pt, model_orientation_)))));
+        }
+        if (reversed) {
+          std::reverse(points.begin(), points.end());
+        }
+        return LineString3d(utils::getId(), points);
+      });
     }
 
     visualization_msgs::msg::Marker leftDirectionMarker() override
