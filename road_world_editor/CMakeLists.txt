@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.20)
 project(road_world_editor)
 set(CMAKE_CXX_STANDARD 20)
 
+# Use BoostConfig.cmake instead of the removed FindBoost module (lanelet2_core's
+# config calls find_package(Boost)); CMP0167 only exists in CMake >= 3.30
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rviz_common REQUIRED)

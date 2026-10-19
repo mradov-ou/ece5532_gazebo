@@ -9,7 +9,14 @@
 #include <visualization_msgs/msg/interactive_marker_control.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
+// get_package_share_path() replaces the deprecated get_package_share_directory() in
+// newer distros (e.g. Lyrical); fall back for older ones (e.g. Jazzy)
+#if __has_include(<ament_index_cpp/get_package_share_path.hpp>)
+#include <ament_index_cpp/get_package_share_path.hpp>
+#define ROAD_WORLD_EDITOR_HAS_SHARE_PATH 1
+#else
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#endif
 #include <lanelet2_projection/LocalCartesian.h>
 #include <nlohmann/json.hpp>
 
@@ -492,7 +499,11 @@ void RoadWorldEditor::exportGazeboClicked()
 
   std::string world_sdf;
   try {
+#ifdef ROAD_WORLD_EDITOR_HAS_SHARE_PATH
+    std::string template_path = (ament_index_cpp::get_package_share_path("ece5532_gazebo") / "worlds" / "road_world_template.sdf").string();
+#else
     std::string template_path = ament_index_cpp::get_package_share_directory("ece5532_gazebo") + "/worlds/road_world_template.sdf";
+#endif
     std::ifstream template_file(template_path);
     if (!template_file) {
       throw std::runtime_error("Failed to open " + template_path);
