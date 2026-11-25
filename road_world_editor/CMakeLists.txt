@@ -74,7 +74,7 @@ install(
     model_meshes
     rviz
   DESTINATION
-    DESTINATION share/${PROJECT_NAME}
+    share/${PROJECT_NAME}
 )
 
 ament_export_include_directories(include)
