@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>road_world_editor</name>
-  <version>0.1.0</version>
+  <version>1.0.0</version>
   <description>
     Tool to create and edit road networks in Gazebo simulation environments.
   </description>

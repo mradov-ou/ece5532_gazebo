@@ -2,8 +2,8 @@
 Changelog for package roundbot_gazebo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.0 (2026-11-25)
+------------------
 * Bump minimum CMake version to support ROS 2 Lyrical
 * Update test simulation to use new camera
 * Contributors: Micho Radovnikovich

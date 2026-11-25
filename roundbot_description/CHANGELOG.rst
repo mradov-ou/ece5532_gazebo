@@ -2,8 +2,8 @@
 Changelog for package roundbot_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.0 (2026-11-25)
+------------------
 * Bump minimum CMake version to support ROS 2 Lyrical
 * Made Roundbot smaller
 * Added camera sensor

@@ -2,8 +2,8 @@
 Changelog for package ece5532_gazebo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.0 (2026-11-25)
+------------------
 * Bump minimum CMake version to support ROS 2 Lyrical
 * Add road simulation models
 * Add models to support the search_and_rescue project
